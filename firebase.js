@@ -5,16 +5,7 @@ import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDgBGogdNp8m3_IMwlEWRf9qbSTbch6FYo",
-  authDomain: "campusmarketplace-8e435.firebaseapp.com",
-  projectId: "campusmarketplace-8e435",
-  storageBucket: "campusmarketplace-8e435.firebasestorage.app",
-  messagingSenderId: "55059145465",
-  appId: "1:55059145465:web:6b90443e16e33c53c4b828",
-  measurementId: "G-4EGPVN6NY6"
-};
+//Firebase config
 
 const app = initializeApp(firebaseConfig);
 
