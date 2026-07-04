@@ -1,95 +1,204 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator } from 'react-native';
-import { MarketplaceContext } from '../MarketplaceContext';
-
-// Import Firebase tools
-import { auth, db } from '../firebase';
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert, 
+  KeyboardAvoidingView, 
+  Platform,
+  ScrollView
+} from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '../firebase.js'; // Ensure the .js extension is there
 import { doc, setDoc } from 'firebase/firestore';
 
 export default function SignUpScreen({ switchMode }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [usn, setUsn] = useState('');
   const [branch, setBranch] = useState('');
-  const [loading, setLoading] = useState(false); // To show a spinner while talking to cloud
-  
-  const { setCurrentUser } = useContext(MarketplaceContext);
+  const [upiId, setUpiId] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
-    if (!email.toLowerCase().endsWith('@rvce.edu.in')) {
-      Alert.alert("Access Denied", "You must use a valid @rvce.edu.in email address.");
+    // 1. Basic Validation
+    if (!name || !usn || !branch || !email || !password) {
+      Alert.alert("Missing Fields", "Please fill out all the fields to continue.");
       return;
     }
-    if (!password || !name || !usn || !branch) {
-      Alert.alert("Error", "Please fill out all fields.");
+    
+    if (!upiId.includes('@')) {
+      Alert.alert("Invalid UPI ID", "Please enter a valid UPI ID (e.g., yourname@bank).");
       return;
     }
 
     setLoading(true);
-
     try {
-      // 1. Create the user securely in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, email.toLowerCase(), password);
-      const user = userCredential.user;
-
-      const userData = {
-        uid: user.uid,
-        email: email.toLowerCase(),
-        name: name,
-        usn: usn.toUpperCase(),
-        branch: branch.toUpperCase()
-      };
-
-      // 2. Save their extra details (USN, Branch) to Firestore Database
-      await setDoc(doc(db, 'users', user.uid), userData);
-
-      // 3. Log them into the app locally
-      setCurrentUser(userData);
-
+      // 2. Create the user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // 3. Save all details (including UPI) to Firestore Database
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        name,
+        email,
+        usn: usn.toUpperCase(), // Standardize USN format
+        branch,
+        upiId
+      });
+      
+      // Note: We don't need to navigate manually here. App.js will detect 
+      // the auth state change and automatically switch to the Marketplace tabs!
+      
     } catch (error) {
-      // Firebase automatically checks for duplicate emails and weak passwords!
-      Alert.alert("Sign Up Failed", error.message);
+      Alert.alert("Sign Up Error", error.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>RVCE Marketplace</Text>
-      <Text style={styles.subHeader}>Create an Account</Text>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={styles.container}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        
+        {/* App Title and Header */}
+        <View style={styles.headerContainer}>
+          <Text style={styles.appTitle}>Campus Marketplace</Text>
+          <Text style={styles.subtitle}>Create your student account</Text>
+        </View>
 
-      <TextInput style={styles.input} placeholder="Full Name" value={name} onChangeText={setName} />
-      <TextInput style={styles.input} placeholder="USN (e.g., 1RV21...)" value={usn} onChangeText={setUsn} autoCapitalize="characters" />
-      <TextInput style={styles.input} placeholder="Branch (e.g., CSE)" value={branch} onChangeText={setBranch} autoCapitalize="characters" />
-      <TextInput style={styles.input} placeholder="Email (@rvce.edu.in)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-      <TextInput style={styles.input} placeholder="Password (Min 6 chars)" value={password} onChangeText={setPassword} secureTextEntry />
-      
-      <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign Up</Text>}
-      </TouchableOpacity>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Already have an account? </Text>
-        <TouchableOpacity onPress={switchMode} disabled={loading}>
-          <Text style={styles.link}>Log In</Text>
+        {/* Input Fields with Hints (Placeholders) */}
+        <TextInput 
+          style={styles.input} 
+          placeholder="Full Name (e.g., John Doe)" 
+          value={name} 
+          onChangeText={setName} 
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="USN (e.g., 1RV21CS001)" 
+          value={usn} 
+          onChangeText={setUsn} 
+          autoCapitalize="characters"
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="Branch (e.g., CSE, ECE)" 
+          value={branch} 
+          onChangeText={setBranch} 
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="UPI ID for receiving payments (name@bank)" 
+          value={upiId} 
+          onChangeText={setUpiId} 
+          autoCapitalize="none"
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="University Email Address" 
+          value={email} 
+          onChangeText={setEmail} 
+          keyboardType="email-address" 
+          autoCapitalize="none"
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="Password (minimum 6 characters)" 
+          value={password} 
+          onChangeText={setPassword} 
+          secureTextEntry 
+        />
+        
+        {/* Sign Up Button */}
+        <TouchableOpacity 
+          style={[styles.button, loading && styles.buttonDisabled]} 
+          onPress={handleSignUp}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>{loading ? "Creating Account..." : "Sign Up"}</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+
+        {/* Switch to Login Link */}
+        <TouchableOpacity style={styles.switchButton} onPress={switchMode}>
+          <Text style={styles.switchText}>Already have an account? <Text style={styles.linkText}>Log in here</Text></Text>
+        </TouchableOpacity>
+
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
-// Keeping the exact same styles as before
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: 'center', padding: 20, backgroundColor: '#f5f5f5' },
-  header: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', color: '#2c3e50' },
-  subHeader: { fontSize: 16, textAlign: 'center', marginBottom: 30, color: '#7f8c8d' },
-  input: { backgroundColor: '#fff', padding: 15, borderRadius: 8, marginBottom: 15, borderWidth: 1, borderColor: '#ddd' },
-  button: { backgroundColor: '#2ecc71', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 20 },
-  buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  footer: { flexDirection: 'row', justifyContent: 'center' },
-  footerText: { color: '#7f8c8d', fontSize: 15 },
-  link: { color: '#3498db', fontSize: 15, fontWeight: 'bold' }
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  headerContainer: {
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  appTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#7f8c8d',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
+  },
+  button: {
+    backgroundColor: '#2ecc71',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: '#2ecc71',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  buttonDisabled: {
+    backgroundColor: '#95a5a6',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  switchButton: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  switchText: {
+    fontSize: 15,
+    color: '#7f8c8d',
+  },
+  linkText: {
+    color: '#3498db',
+    fontWeight: 'bold',
+  }
 });

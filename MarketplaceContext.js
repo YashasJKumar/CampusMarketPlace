@@ -1,19 +1,45 @@
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from './firebase.js'; 
 
+// 1. Create the Context
 export const MarketplaceContext = createContext();
 
-// We will move these items to Firebase in the next step, but let's keep them here for now so the feed doesn't break.
-const INITIAL_DATA = [
-  { id: '1', title: 'Calculus Early Transcendentals', price: '$40', sellerName: 'Alex T.', sellerEmail: 'alex@rvce.edu.in', usn: '1RV21CS001', branch: 'CSE', image: 'https://via.placeholder.com/150', isReserved: false },
-];
-
+// 2. Create the Provider Component
 export const MarketplaceProvider = ({ children }) => {
-  const [items, setItems] = useState(INITIAL_DATA);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // Notice we removed registeredUsers completely!
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Fetch additional user details from Firestore
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            setCurrentUser({ ...docSnap.data(), uid: user.uid });
+          } else {
+            // Fallback if auth exists but no Firestore document is found
+            setCurrentUser({ uid: user.uid, email: user.email });
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          setCurrentUser(null);
+        }
+      } else {
+        // User is logged out
+        setCurrentUser(null);
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
+
   return (
-    <MarketplaceContext.Provider value={{ items, setItems, currentUser, setCurrentUser }}>
+    <MarketplaceContext.Provider value={{ currentUser, setCurrentUser }}>
       {children}
     </MarketplaceContext.Provider>
   );

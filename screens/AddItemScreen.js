@@ -1,10 +1,10 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import { useContext, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
 import { MarketplaceContext } from '../MarketplaceContext';
 
 // Import Firebase tools (No storage needed anymore!)
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function AddItemScreen({ navigation }) {
   const [title, setTitle] = useState('');
@@ -27,13 +27,17 @@ export default function AddItemScreen({ navigation }) {
       await addDoc(collection(db, 'items'), {
         title: title,
         description: description,
-        price: `₹${price}`, // Formatted in INR
+        price: `₹${price}`,
         sellerName: currentUser.name,
         sellerEmail: currentUser.email,
         usn: currentUser.usn,
         branch: currentUser.branch,
         isReserved: false,
-        createdAt: serverTimestamp() 
+        createdAt: serverTimestamp(),
+        status: 'OPEN',
+        currentPrice: `₹${price}`,
+        lastActor: 'SELLER',
+        sellerUpi: currentUser.upiId
       });
 
       // Clear the form
