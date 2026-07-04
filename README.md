@@ -38,30 +38,33 @@ Prerequisites
 • Expo CLI installed (npm install -g expo-cli)
 • Expo Go app installed on your physical mobile device (iOS/Android)
 1. Clone the repository
+```
 git clone [https://github.com/YashasJKumar/CampusMarketplace.git](https://github.com/YashasJKumar/CampusMarketplace.git)
 cd CampusMarketplace
+```
+
 
 2. Install dependencies
 ```
 npm install
 ```
 
-3. Firebase Configuration
+3. Firebase Configuration : 
 You need to connect the app to your own Firebase project.
-1. Create a project on Firebase Console.
-2. Enable Authentication (Email/Password).
-3. Enable Firestore Database and set up the following basic security rules for testing:
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read: if true; 
-      allow write: if request.auth != null;
-    }
-  }
-}
-```
+      * Create a project on Firebase Console.
+      * Enable Authentication (Email/Password).
+      * Enable Firestore Database and set up the following basic security rules for testing:
+      ```
+      rules_version = '2';
+      service cloud.firestore {
+      match /databases/{database}/documents {
+         match /{document=**} {
+            allow read: if true; 
+            allow write: if request.auth != null;
+         }
+      }
+      }
+      ```
 
 4. Create a file named firebase.js in the root directory and add your Firebase config:
 ```
@@ -89,7 +92,9 @@ npx expo start
 ```
 
 Scan the generated QR code using the Expo Go app on your mobile device to view and test the application in real-time.
-🤝 Contributing
+
+# 🤝 Contributing
 Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
-📝 License
+
+# 📝 License
 This project is MIT licensed.
