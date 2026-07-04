@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useContext } from 'react';
-import { View, SafeAreaView, StyleSheet } from 'react-native';
+import { View, SafeAreaView, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { signOut } from 'firebase/auth';
+import { auth } from './firebase.js';
 
-// Import Context and Provider
 import { MarketplaceProvider, MarketplaceContext } from './MarketplaceContext.js';
 
 // Import Screens
@@ -17,12 +18,10 @@ import ProfileScreen from './screens/ProfileScreen.js';
 const Tab = createBottomTabNavigator();
 
 function MainApp() {
-  const { currentUser } = useContext(MarketplaceContext);
-  
-  // Controls whether the user sees the Login or Sign Up screen
+  const { currentUser, setCurrentUser } = useContext(MarketplaceContext);
   const [authMode, setAuthMode] = useState('login');
 
-  // If no user is logged in, restrict them to the Auth flow
+  // 1. User is NOT logged in at all
   if (!currentUser) {
     return (
       <SafeAreaView style={styles.authContainer}>
@@ -31,6 +30,38 @@ function MainApp() {
         ) : (
           <SignUpScreen switchMode={() => setAuthMode('login')} />
         )}
+      </SafeAreaView>
+    );
+  }
+
+  // 2. User IS logged in, BUT email is NOT verified
+  if (currentUser && !currentUser.emailVerified) {
+    
+    // Function to check if they clicked the link
+    const checkVerification = async () => {
+      await auth.currentUser.reload(); // Force Firebase to fetch latest status
+      if (auth.currentUser.emailVerified) {
+        setCurrentUser({ ...currentUser, emailVerified: true });
+        Alert.alert("Success", "Email verified! Welcome to Campus Marketplace.");
+      } else {
+        Alert.alert("Not Verified", "You haven't clicked the link yet. Please check your spam folder.");
+      }
+    };
+
+    return (
+      <SafeAreaView style={[styles.authContainer, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Verify Your Email</Text>
+        <Text style={{ textAlign: 'center', color: '#7f8c8d', marginBottom: 30 }}>
+          We sent a verification link to {currentUser.email}. You must verify it before buying or selling on campus.
+        </Text>
+        
+        <TouchableOpacity style={[styles.btn, { backgroundColor: '#3498db', width: '100%', marginBottom: 15 }]} onPress={checkVerification}>
+          <Text style={{ color: '#fff', fontWeight: 'bold', textAlign: 'center', padding: 15 }}>I Have Verified My Email</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => signOut(auth)}>
+          <Text style={{ color: '#e74c3c', fontWeight: 'bold' }}>Log Out</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }

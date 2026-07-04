@@ -10,9 +10,9 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth, db } from '../firebase.js'; // Ensure the .js extension is there
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function SignUpScreen({ switchMode }) {
   const [name, setName] = useState('');
@@ -26,34 +26,74 @@ export default function SignUpScreen({ switchMode }) {
   const handleSignUp = async () => {
     // 1. Basic Validation
     if (!name || !usn || !branch || !email || !password) {
-      Alert.alert("Missing Fields", "Please fill out all the fields to continue.");
+      Alert.alert("Missing Fields", "Please fill out all the fields.");
       return;
     }
     
     if (!upiId.includes('@')) {
-      Alert.alert("Invalid UPI ID", "Please enter a valid UPI ID (e.g., yourname@bank).");
+      Alert.alert("Invalid UPI ID", "Please enter a valid UPI ID.");
+      return;
+    }
+
+    // 2. Domain Restriction
+    const domain = "@rvce.edu.in";
+    if (!email.trim().toLowerCase().endsWith(domain)) {
+      Alert.alert(
+        "Invalid Email", 
+        `You must use a valid college email ending with ${domain} to join the Campus Marketplace.`
+      );
       return;
     }
 
     setLoading(true);
     try {
-      // 2. Create the user in Firebase Auth
+      const formattedUSN = usn.toUpperCase().trim();
+
+      console.log("Searching Database for USN:", formattedUSN);
+
+      // ⭐️ NEW: CHECK IF USN ALREADY EXISTS ⭐️
+      const usersRef = collection(db, "users");
+      const usnQuery = query(usersRef, where("usn", "==", formattedUSN));
+      const querySnapshot = await getDocs(usnQuery);
+      console.log("Number of matching USNs found:", querySnapshot.size);
+
+      if (!querySnapshot.empty) {
+        // If the snapshot is not empty, it means this USN is already in the database
+        Alert.alert("Account Exists", `An account with the USN ${formattedUSN} is already registered.`);
+        setLoading(false);
+        return; // Stop the sign-up process entirely
+      }
+      // else{
+      //   Alert.alert("Debug", `Firestore checked for ${formattedUSN} but found 0 matches. Creating account...`);
+      // }
+
+      // 3. Create the user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // 3. Save all details (including UPI) to Firestore Database
+      // 4. Send the verification email
+      await sendEmailVerification(userCredential.user);
+      
+      // 5. Save all details to Firestore
       await setDoc(doc(db, "users", userCredential.user.uid), {
         name,
-        email,
-        usn: usn.toUpperCase(), // Standardize USN format
+        email: email.trim().toLowerCase(),
+        usn: formattedUSN,
         branch,
         upiId
       });
       
-      // Note: We don't need to navigate manually here. App.js will detect 
-      // the auth state change and automatically switch to the Marketplace tabs!
+      Alert.alert(
+        "Verification Sent!", 
+        "Please check your university email inbox and click the link to verify your account."
+      );
       
     } catch (error) {
-      Alert.alert("Sign Up Error", error.message);
+      // ⭐️ NEW: CATCH DUPLICATE EMAIL ERROR ⭐️
+      if (error.code === 'auth/email-already-in-use') {
+        Alert.alert("Email in Use", "An account with this email already exists. Please switch to the Login screen.");
+      } else {
+        Alert.alert("Sign Up Error", error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -94,14 +134,14 @@ export default function SignUpScreen({ switchMode }) {
         />
         <TextInput 
           style={styles.input} 
-          placeholder="UPI ID for receiving payments (name@bank)" 
+          placeholder="UPI ID for payments (name@bank)" 
           value={upiId} 
           onChangeText={setUpiId} 
           autoCapitalize="none"
         />
         <TextInput 
           style={styles.input} 
-          placeholder="University Email Address" 
+          placeholder="University Email Address @rvce.edu.in" 
           value={email} 
           onChangeText={setEmail} 
           keyboardType="email-address" 

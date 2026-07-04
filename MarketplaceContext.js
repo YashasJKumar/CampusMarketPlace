@@ -19,10 +19,10 @@ export const MarketplaceProvider = ({ children }) => {
           const docSnap = await getDoc(docRef);
           
           if (docSnap.exists()) {
-            setCurrentUser({ ...docSnap.data(), uid: user.uid });
+            // Add emailVerified here
+            setCurrentUser({ ...docSnap.data(), uid: user.uid, emailVerified: user.emailVerified }); 
           } else {
-            // Fallback if auth exists but no Firestore document is found
-            setCurrentUser({ uid: user.uid, email: user.email });
+            setCurrentUser({ uid: user.uid, email: user.email, emailVerified: user.emailVerified });
           }
         } catch (error) {
           console.error("Error fetching user data:", error);

@@ -1,50 +1,95 @@
-# Welcome to your Expo app 👋
+# 🎓 Campus Marketplace
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A secure, peer-to-peer mobile marketplace built exclusively for university students. This app allows students to buy, sell, and negotiate items within their campus network safely, utilizing college-domain email verification and frictionless UPI payments.
 
-## Get started
+## ✨ Key Features
 
-1. Install dependencies
+*   **🔒 Exclusive Access:** Strict registration flow requiring a verified university email domain (e.g., `@rvce.edu.in`) and a unique University Seat Number (USN).
+*   **🤝 Real-Time Negotiation Engine:** A dynamic, turn-based negotiation system where buyers and sellers can send counter-offers until a price is agreed upon.
+*   **💸 Frictionless UPI Payments:** Integrated UPI deep-linking allows buyers to pay sellers directly through their installed banking apps (Bhim, Navi, GPay etc.) without the app storing sensitive financial data.
+*   **🔄 Escrow-Style Status Tracking:** Items follow a strict state-machine lifecycle: `OPEN` ➔ `NEGOTIATING` ➔ `RESERVED` ➔ `PAYMENT_SENT` ➔ `COMPLETED`.
+*   **📱 Filtered Feeds:** Users can toggle between the global "Marketplace" feed and a personalized "My Deals" tab to track their active negotiations.
 
-   ```bash
-   npm install
-   ```
+## 🛠️ Technology Stack
 
-2. Start the app
+*   **Frontend:** React Native (managed by Expo)
+*   **Navigation:** React Navigation (Bottom Tabs & Native Stack)
+*   **Backend / BaaS:** Google Firebase
+*   **Database:** Cloud Firestore (Real-time NoSQL)
+*   **Authentication:** Firebase Auth (Email Verification & Session Management)
 
-   ```bash
-   npx expo start
-   ```
+## 📂 Project Structure
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```text
+├── App.js                   # Navigation config and Auth state gatekeeper
+├── MarketplaceContext.js    # Global state management and Firebase listener
+├── firebase.js              # Firebase configuration and initialization
+├── screens/
+│   ├── LoginScreen.js       # User login
+│   ├── SignUpScreen.js      # Registration with USN and Domain validation
+│   ├── FeedScreen.js        # Main marketplace feed & negotiation engine
+│   ├── AddItemScreen.js     # Form to list new products
+│   └── ProfileScreen.js     # User details and logout logic
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+🚀 Installation & Local Setup
+Prerequisites
+• Node.js installed
+• Expo CLI installed (npm install -g expo-cli)
+• Expo Go app installed on your physical mobile device (iOS/Android)
+1. Clone the repository
+git clone [https://github.com/YashasJKumar/CampusMarketplace.git](https://github.com/YashasJKumar/CampusMarketplace.git)
+cd CampusMarketplace
 
-## Learn more
+2. Install dependencies
+```
+npm install
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Firebase Configuration
+You need to connect the app to your own Firebase project.
+1. Create a project on Firebase Console.
+2. Enable Authentication (Email/Password).
+3. Enable Firestore Database and set up the following basic security rules for testing:
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read: if true; 
+      allow write: if request.auth != null;
+    }
+  }
+}
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+4. Create a file named firebase.js in the root directory and add your Firebase config:
+```
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
-## Join the community
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
 
-Join our community of developers creating universal apps.
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+4. Run the application
+```
+npx expo start
+```
+
+Scan the generated QR code using the Expo Go app on your mobile device to view and test the application in real-time.
+🤝 Contributing
+Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
+📝 License
+This project is MIT licensed.
