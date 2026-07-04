@@ -19,7 +19,7 @@ export default function FeedScreen() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [offerInput, setOfferInput] = useState({});
-  const [viewMode, setViewMode] = useState('feed'); // 'feed' or 'myDeals'
+  const [viewMode, setViewMode] = useState('feed'); 
 
   useEffect(() => {
     const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'));
@@ -35,9 +35,7 @@ export default function FeedScreen() {
     const updates = {};
 
     if (action === 'RESERVE') {
-      // Accept offer and finalize the deal
       updates.status = 'RESERVED';
-      // If a buyer directly reserves without negotiating, capture their info
       if (!item.buyerEmail) {
         updates.buyerName = currentUser.name;
         updates.buyerEmail = currentUser.email;
@@ -51,16 +49,21 @@ export default function FeedScreen() {
       updates.currentPrice = `₹${newPrice}`;
       updates.lastActor = currentUser.email;
       
-      // Capture the buyer's details the FIRST time they make an offer
       if (!item.buyerEmail && currentUser.email !== item.sellerEmail) {
         updates.buyerName = currentUser.name;
         updates.buyerEmail = currentUser.email;
       }
+    } else if (action === 'MARK_PAID') {
+      updates.status = 'PAYMENT_SENT';
+    } else if (action === 'CONFIRM_PAYMENT') {
+      updates.status = 'COMPLETED';
     }
 
     try {
       await updateDoc(itemRef, updates);
-      Alert.alert("Success", "Update sent!");
+      if (action !== 'MARK_PAID' && action !== 'CONFIRM_PAYMENT') {
+         Alert.alert("Success", "Update sent!");
+      }
     } catch (error) {
       Alert.alert("Error", "Could not update item.");
     }
@@ -75,21 +78,17 @@ export default function FeedScreen() {
     );
   };
 
-  // FILTER LOGIC
   const visibleItems = items.filter(item => {
     if (viewMode === 'feed') {
-      // 1. Hide items if I am the seller
       if (item.sellerEmail === currentUser.email) return false;
-      // 2. Hide items if they are already reserved or negotiating (keep feed clean)
-      if (item.status === 'RESERVED' || item.status === 'SOLD') return false;
+      if (item.status === 'RESERVED' || item.status === 'SOLD' || item.status === 'PAYMENT_SENT' || item.status === 'COMPLETED') return false;
       return true;
     } else {
-      // In "My Deals", show ONLY items I am selling OR items I am buying/negotiating
       return item.sellerEmail === currentUser.email || item.buyerEmail === currentUser.email;
     }
   });
 
-    const renderItem = ({ item }) => {
+  const renderItem = ({ item }) => {
     const isMyItem = item.sellerEmail === currentUser.email;
     const isWaitingForMe = item.lastActor !== currentUser.email;
 
@@ -107,23 +106,68 @@ export default function FeedScreen() {
           <Text style={styles.label}>Branch: <Text style={styles.info}>{item.branch} ({item.usn})</Text></Text>
         </View>
 
-        {item.status === 'RESERVED' || item.status === 'SOLD' ? (
+        {/* --- STATE MACHINE UI --- */}
+        {item.status === 'COMPLETED' ? (
+           <View style={[styles.finalBox, { borderColor: '#2ecc71', backgroundColor: '#eaffea' }]}>
+             <Text style={styles.successText}>✓ Deal Completed & Verified</Text>
+             <Text style={styles.dealInfo}>
+               {isMyItem ? `Sold to: ${item.buyerName}` : `Bought from: ${item.sellerName}`}
+             </Text>
+           </View>
+        ) : 
+
+        item.status === 'PAYMENT_SENT' ? (
+          <View style={styles.finalBox}>
+            <Text style={[styles.successText, { color: '#f39c12' }]}>Payment Processing</Text>
+            <Text style={styles.dealInfo}>
+              {isMyItem ? `Sold to: ${item.buyerName}` : `Bought from: ${item.sellerName}`}
+            </Text>
+
+            {isMyItem ? (
+              <View>
+                <Text style={styles.statusText}>Buyer claims to have paid. Check your bank app.</Text>
+                <TouchableOpacity 
+                  style={[styles.btn, styles.btnSuccess, { marginTop: 10 }]} 
+                  onPress={() => handleAction(item, 'CONFIRM_PAYMENT')}
+                >
+                  <Text style={styles.btnText}>Mark Payment Received</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.statusText}>Waiting for the seller to verify your payment...</Text>
+            )}
+          </View>
+        ) : 
+
+        item.status === 'RESERVED' || item.status === 'SOLD' ? (
           <View style={styles.finalBox}>
             <Text style={styles.successText}>✓ Deal Finalized</Text>
             <Text style={styles.dealInfo}>
               {isMyItem ? `Sold to: ${item.buyerName}` : `Bought from: ${item.sellerName}`}
             </Text>
 
-            {!isMyItem && (
-              <TouchableOpacity 
-                style={[styles.btn, styles.btnPay]} 
-                onPress={() => handlePay(item.sellerUpi, item.currentPrice)}
-              >
-                <Text style={styles.btnText}>Pay Seller via UPI</Text>
-              </TouchableOpacity>
+            {!isMyItem ? (
+              <View>
+                <TouchableOpacity 
+                  style={[styles.btn, styles.btnPay]} 
+                  onPress={() => handlePay(item.sellerUpi, item.currentPrice)}
+                >
+                  <Text style={styles.btnText}>Pay Seller via UPI</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.btn, styles.btnSuccess, { marginTop: 10 }]} 
+                  onPress={() => handleAction(item, 'MARK_PAID')}
+                >
+                  <Text style={styles.btnText}>Mark as Paid</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.statusText}>Waiting for buyer to complete payment...</Text>
             )}
           </View>
-        ) : item.status === 'NEGOTIATING' ? (
+        ) : 
+        
+        item.status === 'NEGOTIATING' ? (
           <View>
             {isWaitingForMe ? (
               <View>
@@ -147,7 +191,9 @@ export default function FeedScreen() {
               <Text style={styles.statusText}>Waiting for the other party to respond...</Text>
             )}
           </View>
-        ) : (
+        ) : 
+
+        (
           <View>
             {isMyItem ? (
               <Text style={styles.statusText}>Waiting for buyers...</Text>
@@ -179,7 +225,6 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Toggle Bar */}
       <View style={styles.toggleContainer}>
         <TouchableOpacity 
           style={[styles.toggleBtn, viewMode === 'feed' && styles.activeToggle]} 
@@ -195,7 +240,6 @@ export default function FeedScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* FIXED: Passed visibleItems instead of items */}
       <FlatList 
         data={visibleItems} 
         renderItem={renderItem} 
@@ -230,5 +274,6 @@ const styles = StyleSheet.create({
   successText: { color: '#27ae60', fontWeight: 'bold', marginBottom: 5 },
   dealInfo: { color: '#2c3e50', fontSize: 15, marginBottom: 5 },
   statusText: { color: '#e67e22', fontStyle: 'italic', marginBottom: 8, fontWeight: '500' },
-  btnPay: { backgroundColor: '#9b59b6', marginTop: 10 },
+  btnPay: { backgroundColor: '#8e44ad', marginTop: 10 }, 
+  btnSuccess: { backgroundColor: '#27ae60' }
 });
