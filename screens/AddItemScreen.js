@@ -46,7 +46,7 @@ export default function AddItemScreen({ navigation }) {
       setPrice('');
 
       Alert.alert("Success!", `${title} has been listed!`);
-      navigation.navigate('Marketplace'); 
+      navigation.navigate('Campus Marketplace'); 
 
     } catch (error) {
       Alert.alert("Upload Error", error.message);
